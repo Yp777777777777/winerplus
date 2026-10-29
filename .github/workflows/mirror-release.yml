@@ -1,0 +1,76 @@
+name: Mirror public release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag (ex. v1.100.5)"
+        required: true
+      version:
+        description: "versionName (ex. 1.100.5)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download APK from private release
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.tag }}"
+          gh release download "$TAG" -R Yp777777777777/winerplus-src -p chatter.apk -O chatter.apk
+          ls -la chatter.apk
+
+      - name: Download IPA from private iOS workflow artifact
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # Latest successful ios.yml run artifact Chatter-unsigned-ipa
+          RUN_ID=$(gh run list -R Yp777777777777/winerplus-ios-src -w ios.yml --status success --limit 1 --json databaseId -q '.[0].databaseId')
+          gh run download "$RUN_ID" -R Yp777777777777/winerplus-ios-src -n Chatter-unsigned-ipa -D ipa-out
+          find ipa-out -name '*.ipa' -exec cp {} Chatter.ipa \;
+          ls -la Chatter.ipa
+
+      - name: Publish public release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: Update ${{ inputs.version }}
+          body: |
+            android: chatter.apk (${{ inputs.version }})
+            ios: Chatter.ipa (${{ inputs.version }}, unsigned — AltStore or Sideloadly)
+
+            what changed
+            - Studio appearance slots in Studio; live refresh; dead buttons explain why
+            - composer.js regex fallback for older WebViews
+            - versionCode 166 (clears 1.100.4)
+          files: |
+            chatter.apk
+            Chatter.ipa
+
+      - name: Move latest tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Publish rolling latest
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: latest
+          body: "Rolling build (version ${{ inputs.version }}). Used by the in-app updater."
+          make_latest: false
+          files: |
+            chatter.apk
+            Chatter.ipa
