@@ -46,11 +46,6 @@ jobs:
           body: |
             android: chatter.apk (${{ inputs.version }})
             ios: Chatter.ipa (${{ inputs.version }}, unsigned — AltStore or Sideloadly)
-
-            what changed
-            - Studio appearance slots in Studio; live refresh; dead buttons explain why
-            - composer.js regex fallback for older WebViews
-            - versionCode 166 (clears 1.100.4)
           files: |
             chatter.apk
             Chatter.ipa
