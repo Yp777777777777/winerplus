@@ -38,14 +38,26 @@ jobs:
           find ipa-out -name '*.ipa' -exec cp {} Chatter.ipa \;
           ls -la Chatter.ipa
 
+      # the notes are the public ones the private release was published with (PUBLIC_<v>.md)
+      - name: Release notes
+        env:
+          GH_TOKEN: ${{ secrets.SOURCE_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "android: chatter.apk (${{ inputs.version }})"
+            echo "ios: Chatter.ipa (${{ inputs.version }}, unsigned — AltStore or Sideloadly)"
+            echo
+            gh release view "${{ inputs.tag }}" -R Yp777777777777/winerplus-src --json body -q .body || true
+          } > NOTES.txt
+          cat NOTES.txt
+
       - name: Publish public release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
           name: Update ${{ inputs.version }}
-          body: |
-            android: chatter.apk (${{ inputs.version }})
-            ios: Chatter.ipa (${{ inputs.version }}, unsigned — AltStore or Sideloadly)
+          body_path: NOTES.txt
           files: |
             chatter.apk
             Chatter.ipa
